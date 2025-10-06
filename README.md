@@ -1,80 +1,77 @@
 
-# Operatus Web API
+# Agenda API (ASP.NET Core 9 + EF Core + SQL Server)
 
-Este é um projeto de **API** RESTful utilizando **ASP.NET Core**, implementando o **Repository Pattern** para o gerenciamento do Operatus, utilizando o banco de dados **SQL Server**.
+API RESTful para agenda de contatos e agendamentos, construída com ASP.NET Core, Entity Framework Core e Identity (JWT). O projeto utiliza Repository Pattern, FluentValidation e Swagger.
 
-## Estrutura do Projeto
+## Recursos
+- Endpoints sob o prefixo `/api`
+- Autenticação JWT e Identity Roles
+- Swagger UI para documentação interativa
+- Banco SQL Server com migrações automáticas e seed inicial
 
-A estrutura do projeto segue uma organização baseada no **Repository Pattern**, separando as camadas de **acesso a dados**, **serviços** e **controllers**.
+## Executar com Docker Compose (recomendado)
 
-### Estrutura de Pastas
+Pré-requisitos:
+- Docker Desktop instalado e em execução
 
-```
-/FSBR-WebAPI
-│
-├── /Controllers               # Camada de controle, onde a API é exposta.
-│   ├── 
-│   ├── 
-│
-├── /Entities                  # Contém os modelos de dados
-│   ├── 
-│   ├── 
-│
-├── /Domain                    # Camada de serviço, contendo a lógica de negócios.
-│   ├── /Interfaces            # Interfaces dos repositórios e serviços.
-│   │   ├── 
-│   │   ├── 
-│   │
-│   ├── /Services              # Implementações dos serviços.
-│   │   ├── 
-│   │   ├── 
-│
-├── /Infrastructure            # Camada de acesso a dados e repositórios.
-│   ├── /Configuration         # Configuração do DbContext e dependências.
-│   │   ├── ContextBase.cs     # DbContext para o acesso ao banco de dados.
-│   │
-│   ├── /Repository            # Implementação dos repositórios.
-│   │   ├── 
-│   │   ├── 
-│
-├── /Migrations                # Migrations do Entity Framework para criação do banco de dados.
-│
-├── /appsettings.json          # Arquivo de configuração com strings de conexão e outras variáveis.
-├── /Program.cs                # Configuração da aplicação e serviços (DI).
-├── /Startup.cs                # Configuração da aplicação e serviços (para versões anteriores).
+Passos:
+1. Abra um terminal na pasta `agenda-api/WebApis`
+2. Execute:
+   ```bash
+   docker compose up -d --build
+   ```
+
+Serviços levantados:
+- `sqlserver`: SQL Server 2022 (porta `1433`)
+- `webapis`: API .NET (porta host `7000` -> `5000` no container)
+- `agenda-web`: Frontend (Nginx servindo build do Vue na porta `3000` do host)
+- `nginx`: Reverse proxy público (porta `80` e `443`), encaminhando:
+  - `/` → frontend (`agenda-web`)
+  - `/api/` → API (`webapis`)
+- `ef-migrator`: aplica migrações automaticamente antes de subir a API
+
+URLs úteis:
+- Frontend via proxy: `http://localhost/`
+- API direta: `http://localhost:7000/api`
+- Swagger da API: `http://localhost:7000/swagger`
+
+Variáveis de ambiente principais (definidas no `docker-compose.yml`):
+```yaml
+DatabaseProvider: SqlServer
+ConnectionStrings__SqlServer: Server=sqlserver;Database=agenda;User=sa;Password=84844323sdf!@#%;TrustServerCertificate=True;
+ASPNETCORE_ENVIRONMENT: Development
 ```
 
-## Como Rodar o Projeto
+### Seed (dados iniciais)
+As migrações do EF aplicam um seed com usuário administrador padrão:
+- Usuário: `administrador`
+- Senha: `administrador8485!@`
 
-### **1. Instalar Dependências**
+Após subir os containers, autentique-se com as credenciais acima e altere a senha imediatamente em ambientes não-desenvolvimento.
 
-Certifique-se de que as dependências do projeto estejam instaladas. Você pode rodar o comando:
+## Execução Local (sem Docker)
+1. Restaurar dependências:
+   ```bash
+   dotnet restore
+   ```
+2. Configurar a string de conexão em `WebApis/appsettings.Development.json` ou via variáveis de ambiente (chave `ConnectionStrings:SqlServer`).
+3. Aplicar migrações e criar o banco:
+   ```bash
+   dotnet ef database update --project Infraestructure/Infraestructure.csproj --startup-project WebApis/WebApis.csproj
+   ```
+4. Executar a API:
+   ```bash
+   dotnet run --project WebApis/WebApis.csproj
+   ```
+5. Acessos:
+   - API: `http://localhost:5000/api`
+   - Swagger: `http://localhost:5000/swagger`
 
-```bash
-dotnet restore
-```
+## Estrutura (resumo)
+- `Entities/`: Entidades, DTOs e enums
+- `Domain/`: Interfaces e serviços de domínio
+- `Infraestructure/`: DbContext, migrações e repositórios
+- `WebApis/`: API (controllers, validações, Program.cs, Docker/Nginx)
 
-### **2. Criar o Banco de Dados**
-
-Se ainda não foi criado, você pode gerar as **migrations** e aplicar no **LocalDB** executando:
-
-```bash
-dotnet ef migrations add InitialCreate
-dotnet ef database update
-```
-
-### **3. Rodar o Projeto**
-
-Execute o projeto com o comando:
-
-```bash
-dotnet run
-```
-
-A API estará disponível em **http://localhost:5000** (por padrão, ou conforme configurado).
-A API estará disponível em **http://localhost:5000/swagger** (por padrão, ou conforme configurado).
-
-
-### **Licença**
-
-Este projeto está licenciado sob a **MIT License** - consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
+## Licença
+Projeto sob licença MIT. Consulte `LICENSE` para detalhes.
