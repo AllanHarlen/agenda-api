@@ -1,0 +1,81 @@
+x-shared-env: &shared-env
+  DatabaseProvider: ${DatabaseProvider:-SqlServer}
+  ConnectionStrings__SqlServer: Server=sqlserver;Database=agenda;User=sa;Password=84844323sdf!@#%;TrustServerCertificate=True;
+
+services:
+  webapis:
+    build:
+      context: ../
+      dockerfile: WebApis/Dockerfile
+    container_name: dotnet-webapis
+    ports:
+      - "7000:5000"
+      - "7001:5001"
+    environment:
+      <<: *shared-env
+      ASPNETCORE_ENVIRONMENT: Development
+      LANG: C.UTF-8
+    depends_on:
+      ef-migrator:
+        condition: service_completed_successfully
+    networks:
+      - webnet 
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    environment:
+      SA_PASSWORD: "84844323sdf!@#%"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    networks:
+      - webnet
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - webapis
+      - agenda-web
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - webnet 
+
+  agenda-web:
+    build:
+      context: ../../agenda-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: "/api/"
+    container_name: agenda-web
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_BASE_URL: "/api/"
+    depends_on:
+      - webapis
+    networks:
+      - webnet
+
+  ef-migrator:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    container_name: ef-migrator
+    working_dir: /src
+    environment:
+      <<: *shared-env
+      ASPNETCORE_ENVIRONMENT: Development
+    volumes:
+      - "..:/src"
+    entrypoint: ["bash", "-lc", "sed -i 's/\\r$//' /src/WebApis/ef-migrator.sh && chmod +x /src/WebApis/ef-migrator.sh && /src/WebApis/ef-migrator.sh" ]
+    restart: "no"
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    driver: bridge
